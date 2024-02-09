@@ -56,7 +56,6 @@ from psutil._compat import FileExistsError
 from psutil._compat import FileNotFoundError
 from psutil._compat import range
 from psutil._compat import super
-from psutil._compat import u
 from psutil._compat import unicode
 from psutil._compat import which
 
@@ -186,7 +185,7 @@ if os.name == 'java':
     TESTFN_PREFIX = '$psutil-%s-' % os.getpid()
 else:
     TESTFN_PREFIX = '@psutil-%s-' % os.getpid()
-UNICODE_SUFFIX = u("-ƒőő")
+UNICODE_SUFFIX = u"-ƒőő"
 # An invalid unicode string.
 if PY3:
     INVALID_UNICODE_SUFFIX = b"f\xc0\x80".decode('utf8', 'surrogateescape')
@@ -737,9 +736,9 @@ class retry:
                     self.sleep()
                     continue
             if PY3:
-                raise exc
+                raise exc  # noqa: PLE0704
             else:
-                raise
+                raise  # noqa: PLE0704
 
         # This way the user of the decorated function can change config
         # parameters.
@@ -1944,7 +1943,7 @@ def is_namedtuple(x):
     """Check if object is an instance of namedtuple."""
     t = type(x)
     b = t.__bases__
-    if len(b) != 1 or b[0] != tuple:
+    if len(b) != 1 or b[0] is not tuple:
         return False
     f = getattr(t, '_fields', None)
     if not isinstance(f, tuple):
