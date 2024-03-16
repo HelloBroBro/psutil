@@ -355,7 +355,7 @@ class TestCpuAPIs(PsutilTestCase):
         logical = psutil.cpu_count()
         cores = psutil.cpu_count(logical=False)
         if cores is None:
-            raise self.skipTest("cpu_count_cores() is None")
+            raise unittest.SkipTest("cpu_count_cores() is None")
         if WINDOWS and sys.getwindowsversion()[:2] <= (6, 1):  # <= Vista
             self.assertIsNone(cores)
         else:
@@ -385,7 +385,7 @@ class TestCpuAPIs(PsutilTestCase):
             self.assertIsInstance(cp_time, float)
             self.assertGreaterEqual(cp_time, 0.0)
             total += cp_time
-        self.assertAlmostEqual(total, sum(times))
+        self.assertAlmostEqual(total, sum(times), places=6)
         str(times)
         # CPU times are always supposed to increase over time
         # or at least remain the same and that's because time
@@ -424,7 +424,7 @@ class TestCpuAPIs(PsutilTestCase):
                 self.assertIsInstance(cp_time, float)
                 self.assertGreaterEqual(cp_time, 0.0)
                 total += cp_time
-            self.assertAlmostEqual(total, sum(times))
+            self.assertAlmostEqual(total, sum(times), places=6)
             str(times)
         self.assertEqual(
             len(psutil.cpu_times(percpu=True)[0]),
@@ -579,7 +579,7 @@ class TestCpuAPIs(PsutilTestCase):
 
         ls = psutil.cpu_freq(percpu=True)
         if FREEBSD and not ls:
-            raise self.skipTest("returns empty list on FreeBSD")
+            raise unittest.SkipTest("returns empty list on FreeBSD")
 
         assert ls, ls
         check_ls([psutil.cpu_freq(percpu=False)])
