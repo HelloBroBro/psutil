@@ -450,16 +450,15 @@ Disks
     on Windows).
   * **opts**: a comma-separated string indicating different mount options for
     the drive/partition. Platform-dependent.
-  * **maxfile**: the maximum length a file name can have.
-  * **maxpath**: the maximum length a path name (directory name + base file
-    name) can have.
 
   >>> import psutil
   >>> psutil.disk_partitions()
-  [sdiskpart(device='/dev/sda3', mountpoint='/', fstype='ext4', opts='rw,errors=remount-ro', maxfile=255, maxpath=4096),
-   sdiskpart(device='/dev/sda7', mountpoint='/home', fstype='ext4', opts='rw', maxfile=255, maxpath=4096)]
+  [sdiskpart(device='/dev/sda3', mountpoint='/', fstype='ext4', opts='rw,errors=remount-ro'),
+   sdiskpart(device='/dev/sda7', mountpoint='/home', fstype='ext4', opts='rw')]
 
   .. versionchanged:: 5.7.4 added *maxfile* and *maxpath* fields
+
+  .. versionchanged:: 6.0.0 removed *maxfile* and *maxpath* fields
 
 .. function:: disk_usage(path)
 
@@ -928,12 +927,12 @@ Functions
 
   Return an iterator yielding a :class:`Process` class instance for all running
   processes on the local machine.
-  This should be preferred over :func:`psutil.pids()` to iterate over processes
-  as it's safe from race condition.
+  This should be preferred over :func:`psutil.pids()` to iterate over
+  processes, as retrieving info is safe from race conditions.
 
   Every :class:`Process` instance is only created once, and then cached for the
   next time :func:`psutil.process_iter()` is called (if PID is still alive).
-  Also it makes sure process PIDs are not reused.
+  Cache can optionally be cleared via ``process_iter.clear_cache()``.
 
   *attrs* and *ad_value* have the same meaning as in :meth:`Process.as_dict()`.
   If *attrs* is specified :meth:`Process.as_dict()` result will be stored as a
@@ -963,8 +962,18 @@ Functions
      3: {'name': 'ksoftirqd/0', 'username': 'root'},
      ...}
 
+  Clear internal cache::
+
+    >>> psutil.process_iter.cache_clear()
+
   .. versionchanged::
     5.3.0 added "attrs" and "ad_value" parameters.
+
+  .. versionchanged::
+    6.0.0 no longer checks whether each yielded process PID has been reused.
+
+  .. versionchanged::
+    6.0.0 added ``psutil.process_iter.cache_clear()`` API.
 
 .. function:: pid_exists(pid)
 
@@ -1071,11 +1080,12 @@ Process class
 
   .. note::
 
-    the way this class is bound to a process is uniquely via its **PID**.
+    the way this class is bound to a process is via its **PID**.
     That means that if the process terminates and the OS reuses its PID you may
-    end up interacting with another process.
-    The only exceptions for which process identity is preemptively checked
-    (via PID + creation time) is for the following methods:
+    inadvertently end up querying another process. To prevent this problem
+    you can use :meth:`is_running()` first.
+    The only methods which preemptively check whether PID has been reused
+    (via PID + creation time) are:
     :meth:`nice` (set),
     :meth:`ionice`  (set),
     :meth:`cpu_affinity` (set),
@@ -1087,13 +1097,8 @@ Process class
     :meth:`suspend`
     :meth:`resume`,
     :meth:`send_signal`,
-    :meth:`terminate`
+    :meth:`terminate` and
     :meth:`kill`.
-    To prevent this problem for all other methods you can use
-    :meth:`is_running()` before querying the process or
-    :func:`process_iter()` in case you're iterating over all processes.
-    It must be noted though that unless you deal with very "old" (inactive)
-    :class:`Process` instances this will hardly represent a problem.
 
   .. method:: oneshot()
 
@@ -1979,10 +1984,16 @@ Process class
     This is reliable also in case the process is gone and its PID reused by
     another process, therefore it must be preferred over doing
     ``psutil.pid_exists(p.pid)``.
+    If PID has been reused this method will also remove the process from
+    :func:`process_iter()` internal cache.
 
     .. note::
       this will return ``True`` also if the process is a zombie
       (``p.status() == psutil.STATUS_ZOMBIE``).
+
+    .. versionchanged:: 6.0.0 : automatically remove process from
+      :func:`process_iter()` internal cache if PID has been reused by another
+      process.
 
   .. method:: send_signal(signal)
 
