@@ -1,7 +1,7 @@
 *Bug tracker at https://github.com/giampaolo/psutil/issues*
 
-6.0.0 (IN DEVELOPMENT)
-======================
+6.0.0 2024-06-18
+================
 
 **Enhancements**
 
@@ -18,6 +18,7 @@
 - 2407_: `Process.connections()`_ was renamed to `Process.net_connections()`_.
   The old name is still available, but it's deprecated (triggers a
   ``DeprecationWarning``) and will be removed in the future.
+- 2425_: [Linux]: provide aarch64 wheels.  (patch by Matthieu Darbois / Ben Raz)
 
 **Bug fixes**
 
