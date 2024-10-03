@@ -13,28 +13,6 @@ PY3_DEPS = \
 	pytest \
 	pytest-xdist
 
-# deps for local development
-ifndef CIBUILDWHEEL
-	PY3_DEPS += \
-		black \
-		check-manifest \
-		coverage \
-		packaging \
-		pylint \
-		pyperf \
-		pypinfo \
-		pytest-cov \
-		requests \
-		rstcheck \
-		ruff \
-		setuptools \
-		sphinx_rtd_theme \
-		toml-sort \
-		twine \
-		virtualenv \
-		wheel
-endif
-
 # python 2 deps
 PY2_DEPS = \
 	futures \
@@ -61,11 +39,15 @@ BUILD_OPTS = `$(PYTHON) -c \
 	print('--parallel %s' % cpus if cpus > 1 else '')"`
 
 # In not in a virtualenv, add --user options for install commands.
-INSTALL_OPTS = `$(PYTHON) -c \
+SETUP_INSTALL_OPTS = `$(PYTHON) -c \
 	"import sys; print('' if hasattr(sys, 'real_prefix') or hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix else '--user')"`
+PIP_INSTALL_OPTS = --trusted-host files.pythonhosted.org --trusted-host pypi.org --upgrade
 
 # if make is invoked with no arg, default to `make help`
 .DEFAULT_GOAL := help
+
+# install git hook
+_ := $(shell mkdir -p .git/hooks/ && ln -sf ../../scripts/internal/git_pre_commit.py .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit)
 
 # ===================================================================
 # Install
@@ -107,8 +89,7 @@ build:  ## Compile (in parallel) without installing.
 
 install:  ## Install this package as current user in "edit" mode.
 	${MAKE} build
-	$(PYTHON_ENV_VARS) $(PYTHON) setup.py develop $(INSTALL_OPTS)
-	$(PYTHON_ENV_VARS) $(PYTHON) -c "import psutil"  # make sure it actually worked
+	$(PYTHON_ENV_VARS) $(PYTHON) setup.py develop $(SETUP_INSTALL_OPTS)
 
 uninstall:  ## Uninstall this package via pip.
 	cd ..; $(PYTHON_ENV_VARS) $(PYTHON) -m pip uninstall -y -v psutil || true
@@ -117,6 +98,7 @@ uninstall:  ## Uninstall this package via pip.
 install-pip:  ## Install pip (no-op if already installed).
 	@$(PYTHON) -c \
 		"import sys, ssl, os, pkgutil, tempfile, atexit; \
+		print('pip already installed') if pkgutil.find_loader('pip') else None; \
 		sys.exit(0) if pkgutil.find_loader('pip') else None; \
 		PY3 = sys.version_info[0] == 3; \
 		pyexc = 'from urllib.request import urlopen' if PY3 else 'from urllib2 import urlopen'; \
@@ -135,11 +117,23 @@ install-pip:  ## Install pip (no-op if already installed).
 		f.close(); \
 		sys.exit(code);"
 
-setup-dev-env:  ## Install GIT hooks, pip, test deps (also upgrades them).
+install-sysdeps:
+	./scripts/internal/install-sysdeps.sh
+
+install-pydeps-test:  ## Install python deps necessary to run unit tests.
+	${MAKE} install-pip
+	$(PYTHON) -m pip install $(PIP_INSTALL_OPTS) pip  # upgrade pip to latest version
+	$(PYTHON) -m pip install $(PIP_INSTALL_OPTS) `$(PYTHON) -c "import setup; print(' '.join(setup.TEST_DEPS))"`
+
+install-pydeps-dev:  ## Install python deps meant for local development.
 	${MAKE} install-git-hooks
 	${MAKE} install-pip
-	$(PYTHON) -m pip install $(INSTALL_OPTS) --trusted-host files.pythonhosted.org --trusted-host pypi.org --upgrade pip
-	$(PYTHON) -m pip install $(INSTALL_OPTS) --trusted-host files.pythonhosted.org --trusted-host pypi.org --upgrade $(PY_DEPS)
+	$(PYTHON) -m pip install $(PIP_INSTALL_OPTS) pip  # upgrade pip to latest version
+	$(PYTHON) -m pip install $(PIP_INSTALL_OPTS) `$(PYTHON) -c "import setup; print(' '.join(setup.TEST_DEPS + setup.DEV_DEPS))"`
+
+install-git-hooks:  ## Install GIT pre-commit hook.
+	ln -sf ../../scripts/internal/git_pre_commit.py .git/hooks/pre-commit
+	chmod +x .git/hooks/pre-commit
 
 # ===================================================================
 # Tests
@@ -257,14 +251,6 @@ fix-all:  ## Run all code fixers.
 	${MAKE} fix-ruff
 	${MAKE} fix-black
 	${MAKE} fix-toml
-
-# ===================================================================
-# GIT
-# ===================================================================
-
-install-git-hooks:  ## Install GIT pre-commit hook.
-	ln -sf ../../scripts/internal/git_pre_commit.py .git/hooks/pre-commit
-	chmod +x .git/hooks/pre-commit
 
 # ===================================================================
 # Distribution
