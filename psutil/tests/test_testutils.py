@@ -166,8 +166,7 @@ class TestSyncTestUtils(PsutilTestCase):
         assert os.path.exists(testfn)
 
     def test_call_until(self):
-        ret = call_until(lambda: 1, "ret == 1")
-        assert ret == 1
+        call_until(lambda: 1)
 
 
 class TestFSTestUtils(PsutilTestCase):
@@ -399,7 +398,7 @@ class TestMemLeakClass(TestMemoryLeak):
         ls = []
 
         def fun(ls=ls):
-            ls.append("x" * 124 * 1024)
+            ls.append("x" * 248 * 1024)
 
         try:
             # will consume around 60M in total

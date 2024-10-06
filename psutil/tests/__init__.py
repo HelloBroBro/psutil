@@ -472,7 +472,7 @@ def spawn_zombie():
             zpid = int(conn.recv(1024))
             _pids_started.add(zpid)
             zombie = psutil.Process(zpid)
-            call_until(zombie.status, "ret == psutil.STATUS_ZOMBIE")
+            call_until(lambda: zombie.status() == psutil.STATUS_ZOMBIE)
             return (parent, zombie)
         finally:
             conn.close()
@@ -792,12 +792,10 @@ def wait_for_file(fname, delete=True, empty=False):
     timeout=GLOBAL_TIMEOUT,
     interval=0.001,
 )
-def call_until(fun, expr):
-    """Keep calling function for timeout secs and exit if eval()
-    expression is True.
-    """
+def call_until(fun):
+    """Keep calling function until it evaluates to True."""
     ret = fun()
-    assert eval(expr)  # noqa
+    assert ret
     return ret
 
 
@@ -916,24 +914,6 @@ def get_testfn(suffix="", dir=None):
 
 
 class TestCase(unittest.TestCase):
-
-    # Print a full path representation of the single unit tests
-    # being run.
-    def __str__(self):
-        fqmod = self.__class__.__module__
-        if not fqmod.startswith('psutil.'):
-            fqmod = 'psutil.tests.' + fqmod
-        return "%s.%s.%s" % (
-            fqmod,
-            self.__class__.__name__,
-            self._testMethodName,
-        )
-
-    # assertRaisesRegexp renamed to assertRaisesRegex in 3.3;
-    # add support for the new name.
-    if not hasattr(unittest.TestCase, 'assertRaisesRegex'):
-        assertRaisesRegex = unittest.TestCase.assertRaisesRegexp  # noqa
-
     # ...otherwise multiprocessing.Pool complains
     if not PY3:
 
@@ -952,7 +932,8 @@ unittest.TestCase = TestCase
 
 class PsutilTestCase(TestCase):
     """Test class providing auto-cleanup wrappers on top of process
-    test utilities.
+    test utilities. All test classes should derive from this one, even
+    if we use pytest.
     """
 
     def get_testfn(self, suffix="", dir=None):
